@@ -1,10 +1,10 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { storage } from './storage';
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { storage } from "./storage";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -14,7 +14,10 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: AxiosError | null, token: string | null = null) => {
+const processQueue = (
+  error: AxiosError | null,
+  token: string | null = null,
+) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -33,16 +36,25 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean;
+    };
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/login')) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry
+    ) {
+      if (
+        originalRequest.url?.includes("/auth/refresh") ||
+        originalRequest.url?.includes("/auth/login")
+      ) {
         storage.clearTokens();
         return Promise.reject(error);
       }
@@ -67,18 +79,22 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         storage.clearTokens();
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
           window.location.href = `${window.location.origin}/login`;
         }
         return Promise.reject(error);
       }
 
       try {
-        const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
-          refreshToken,
-        });
+        const { data } = await axios.post(
+          `${api.defaults.baseURL}/auth/refresh`,
+          {
+            refreshToken,
+          },
+        );
 
-        const { accessToken, refreshToken: newRefreshToken } = data;
+        const accessToken = data.tokens?.accessToken || data.accessToken;
+        const newRefreshToken = data.tokens?.refreshToken || data.refreshToken;
 
         storage.setAccessToken(accessToken);
         if (newRefreshToken) storage.setRefreshToken(newRefreshToken);
@@ -90,7 +106,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
         storage.clearTokens();
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
           window.location.href = `${window.location.origin}/login`;
         }
         return Promise.reject(refreshError);
@@ -100,5 +116,5 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );

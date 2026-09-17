@@ -27,7 +27,11 @@ export function RegisterForm() {
       setIsLoading(true);
       setErrorMessage(null);
       const response = await authService.register(data);
-      login(response.accessToken, response.refreshToken, response.user);
+      login(
+        response.tokens.accessToken,
+        response.tokens.refreshToken,
+        response.user,
+      );
     } catch (error: unknown) {
       if (error instanceof AxiosError) {
         setErrorMessage(
