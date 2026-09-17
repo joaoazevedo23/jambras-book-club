@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { bookService } from "@/services/book.service";
 import { ShelfStatus } from "@/types/book";
+import { AddBookModal } from "@/components/modules/shelf/AddBookModal";
 import { BookOpen, Plus } from "lucide-react";
 
 const tabs: { label: string; value: ShelfStatus | "ALL" }[] = [
@@ -15,6 +17,7 @@ const tabs: { label: string; value: ShelfStatus | "ALL" }[] = [
 
 export default function DashboardPage() {
   const [selectedTab, setSelectedTab] = useState<ShelfStatus | "ALL">("ALL");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const { data: shelf = [], isLoading } = useQuery({
     queryKey: ["user-shelf", selectedTab],
@@ -34,7 +37,10 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <button className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-medium shadow-md transition-all">
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-medium shadow-md transition-all active:scale-[0.98]"
+        >
           <Plus className="w-5 h-5" />
           <span>Adicionar Livro</span>
         </button>
@@ -92,10 +98,12 @@ export default function DashboardPage() {
               >
                 <div className="aspect-[2/3] bg-zinc-800 relative overflow-hidden">
                   {item.book.coverUrl ? (
-                    <img
+                    <Image
                       src={item.book.coverUrl}
                       alt={item.book.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      fill
+                      unoptimized
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-lg p-2 text-center">
@@ -132,6 +140,11 @@ export default function DashboardPage() {
           })}
         </div>
       )}
+
+      <AddBookModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
     </div>
   );
 }
