@@ -91,8 +91,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [router]);
 
   const login = (accessToken: string, refreshToken: string, userData: User) => {
+    if (!accessToken) {
+      console.error(
+        "Erro de Autenticação: Token de acesso não foi retornado pelo backend.",
+      );
+      return;
+    }
+
     storage.setAccessToken(accessToken);
-    storage.setRefreshToken(refreshToken);
+    if (refreshToken) storage.setRefreshToken(refreshToken);
+
+    api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
     setUser(userData);
     router.push("/dashboard");
   };
