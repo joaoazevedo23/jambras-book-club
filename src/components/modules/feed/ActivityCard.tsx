@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, MessageSquare, Send, User, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -21,6 +22,12 @@ export function ActivityCard({ activity }: ActivityCardProps) {
   const [commentText, setCommentText] = useState("");
 
   const isMyActivity = user?.id === activity.user.id;
+
+  const getAvatarUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return `http://localhost:3001${url}`;
+  };
 
   const timeAgo = formatDistanceToNow(new Date(activity.createdAt), {
     addSuffix: true,
@@ -152,6 +159,10 @@ export function ActivityCard({ activity }: ActivityCardProps) {
       ? "registou uma nova sessão de leitura."
       : "fez uma nova atualização.";
 
+  const profileLink = isMyActivity
+    ? "/profile"
+    : `/profile/${activity.user.id}`;
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden transition-all hover:border-zinc-700 relative group">
       {isMyActivity && (
@@ -168,27 +179,33 @@ export function ActivityCard({ activity }: ActivityCardProps) {
       <div className="p-4 sm:p-5">
         <div className="flex items-center justify-between mb-2 pr-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center overflow-hidden shrink-0 relative">
-              {activity.user.avatarUrl ? (
-                <Image
-                  src={activity.user.avatarUrl}
-                  alt={activity.user.name}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <User className="w-5 h-5 text-zinc-500" />
-              )}
-            </div>
+            <Link href={`/profile/${activity.user.id}`}>
+              <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center overflow-hidden shrink-0 relative hover:opacity-80 transition-opacity">
+                {activity.user.avatarUrl ? (
+                  <Image
+                    src={getAvatarUrl(activity.user.avatarUrl)!}
+                    alt={activity.user.name}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <User className="w-5 h-5 text-zinc-500" />
+                )}
+              </div>
+            </Link>
             <div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-semibold text-zinc-100 text-sm">
+              <Link
+                href={profileLink}
+                className="flex items-baseline gap-1.5 group"
+              >
+                <span className="font-semibold text-zinc-100 text-sm group-hover:underline">
                   {activity.user.name}
                 </span>
-                <span className="text-xs text-zinc-400">
+                <span className="text-xs text-zinc-400 group-hover:text-zinc-300">
                   @{activity.user.username}
                 </span>
-              </div>
+              </Link>
               <p className="text-xs text-zinc-500">{activityTitle}</p>
             </div>
           </div>
@@ -234,9 +251,10 @@ export function ActivityCard({ activity }: ActivityCardProps) {
                   <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center shrink-0 relative overflow-hidden">
                     {comment.user.avatarUrl ? (
                       <Image
-                        src={comment.user.avatarUrl}
+                        src={getAvatarUrl(comment.user.avatarUrl)!}
                         alt={comment.user.name}
                         fill
+                        unoptimized
                         className="object-cover"
                       />
                     ) : (

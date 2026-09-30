@@ -2,9 +2,16 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { useAuth } from "@/context/AuthContext";
-import { BookOpen, Trophy, Users, LogOut } from "lucide-react";
+import {
+  BookOpen,
+  Trophy,
+  Users,
+  LogOut,
+  User as UserIcon,
+} from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -12,6 +19,12 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, logout } = useAuth();
+
+  const getAvatarUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return `http://localhost:3001${url}`;
+  };
 
   return (
     <ProtectedRoute>
@@ -27,9 +40,9 @@ export default function DashboardLayout({
           <nav className="flex-1 space-y-2">
             <Link
               href="/dashboard"
-              className="flex items-center space-x-3 px-4 py-3 rounded-lg bg-zinc-800/80 text-white font-medium"
+              className="flex items-center space-x-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800/40 hover:text-white transition-colors"
             >
-              <BookOpen className="w-5 h-5 text-indigo-400" />
+              <BookOpen className="w-5 h-5" />
               <span>Minha Estante</span>
             </Link>
             <Link
@@ -49,9 +62,22 @@ export default function DashboardLayout({
           </nav>
 
           <div className="border-t border-zinc-800 pt-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3 overflow-hidden">
-              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white shrink-0">
-                {user?.name?.[0]?.toUpperCase() || "U"}
+            <Link
+              href="/profile"
+              className="flex items-center space-x-3 overflow-hidden flex-1 hover:bg-zinc-800/50 p-2 -ml-2 rounded-lg transition-colors cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white shrink-0 relative overflow-hidden">
+                {user?.avatarUrl ? (
+                  <Image
+                    src={getAvatarUrl(user.avatarUrl)!}
+                    alt={user.name || "Avatar"}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  user?.name?.[0]?.toUpperCase() || "U"
+                )}
               </div>
               <div className="truncate">
                 <p className="text-sm font-medium text-white truncate">
@@ -61,11 +87,11 @@ export default function DashboardLayout({
                   @{user?.username}
                 </p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={logout}
               title="Sair"
-              className="p-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors ml-2 shrink-0"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -79,24 +105,31 @@ export default function DashboardLayout({
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 flex justify-around p-3 z-50">
           <Link
             href="/dashboard"
-            className="flex flex-col items-center text-indigo-400 text-xs"
+            className="flex flex-col items-center text-zinc-400 hover:text-indigo-400 transition-colors text-xs"
           >
             <BookOpen className="w-6 h-6" />
             <span>Estante</span>
           </Link>
           <Link
             href="/feed"
-            className="flex flex-col items-center text-zinc-400 text-xs"
+            className="flex flex-col items-center text-zinc-400 hover:text-indigo-400 transition-colors text-xs"
           >
             <Users className="w-6 h-6" />
             <span>Feed</span>
           </Link>
           <Link
             href="/competitions"
-            className="flex flex-col items-center text-zinc-400 text-xs"
+            className="flex flex-col items-center text-zinc-400 hover:text-indigo-400 transition-colors text-xs"
           >
             <Trophy className="w-6 h-6" />
             <span>Desafios</span>
+          </Link>
+          <Link
+            href="/profile"
+            className="flex flex-col items-center text-zinc-400 hover:text-indigo-400 transition-colors text-xs"
+          >
+            <UserIcon className="w-6 h-6" />
+            <span>Perfil</span>
           </Link>
         </nav>
       </div>
