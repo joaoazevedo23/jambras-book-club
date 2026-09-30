@@ -19,6 +19,7 @@ export interface UserBook {
   bookId: string;
   status: ShelfStatus;
   currentPage: number;
+  currentChapter?: number;
   book: Book;
   createdAt: string;
   updatedAt: string;

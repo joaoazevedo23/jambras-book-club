@@ -89,12 +89,19 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {shelf.map((item) => {
-            const progress = Math.min(
-              100,
-              Math.round(
-                (item.currentPage / (item.book.totalPages || 1)) * 100,
-              ),
-            );
+            const isReadingByChapters =
+              item.currentChapter !== undefined &&
+              item.currentChapter > 0 &&
+              item.currentPage === 0;
+
+            const progress = isReadingByChapters
+              ? 0
+              : Math.min(
+                  100,
+                  Math.round(
+                    (item.currentPage / (item.book.totalPages || 1)) * 100,
+                  ),
+                );
 
             return (
               <div
@@ -130,15 +137,23 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     <div className="space-y-1">
                       <div className="flex justify-between text-[10px] text-zinc-400">
-                        <span>{item.currentPage} pág.</span>
-                        <span>{progress}%</span>
+                        {isReadingByChapters ? (
+                          <span>Capítulo {item.currentChapter}</span>
+                        ) : (
+                          <span>{item.currentPage} pág.</span>
+                        )}
+
+                        {!isReadingByChapters && <span>{progress}%</span>}
                       </div>
-                      <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className="bg-indigo-500 h-full transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
+
+                      {!isReadingByChapters && (
+                        <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-indigo-500 h-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {item.status === "READING" && (

@@ -1,27 +1,33 @@
 import { z } from "zod";
 
+const parseNumber = (val: unknown) => {
+  if (val === "" || val === undefined || val === null) return undefined;
+  const parsed = Number(val);
+  return isNaN(parsed) ? undefined : parsed;
+};
+
 export const readingSessionSchema = z
   .object({
     mode: z.enum(["PAGES", "CHAPTERS"]),
     startPage: z.preprocess(
-      (val) => (val === "" ? undefined : Number(val)),
-      z.number().min(0).optional(),
+      parseNumber,
+      z.number().min(0, "Mínimo 0").optional(),
     ),
     endPage: z.preprocess(
-      (val) => (val === "" ? undefined : Number(val)),
-      z.number().min(0).optional(),
+      parseNumber,
+      z.number().min(0, "Mínimo 0").optional(),
     ),
     startChapter: z.preprocess(
-      (val) => (val === "" ? undefined : Number(val)),
-      z.number().min(0).optional(),
+      parseNumber,
+      z.number().min(0, "Mínimo 0").optional(),
     ),
     endChapter: z.preprocess(
-      (val) => (val === "" ? undefined : Number(val)),
-      z.number().min(0).optional(),
+      parseNumber,
+      z.number().min(0, "Mínimo 0").optional(),
     ),
     rating: z.preprocess(
-      (val) => (val === "" ? undefined : Number(val)),
-      z.number().min(1).max(10).optional(),
+      parseNumber,
+      z.number().min(1, "Mínimo 1").max(10, "Máximo 10").optional(),
     ),
     notes: z.string().optional(),
   })

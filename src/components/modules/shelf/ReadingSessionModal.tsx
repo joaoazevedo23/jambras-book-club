@@ -212,6 +212,11 @@ export function ReadingSessionModal({
               {...register("rating")}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:ring-1 focus:ring-indigo-500 outline-none text-sm"
             />
+            {errors.rating && (
+              <p className="mt-1 text-[10px] text-red-400">
+                {errors.rating.message}
+              </p>
+            )}
           </div>
 
           <div>
