@@ -30,4 +30,8 @@ export const activityService = {
   async removeComment(commentId: string): Promise<void> {
     await api.delete(`/activities/comments/${commentId}`);
   },
+
+  async deleteActivity(activityId: string): Promise<void> {
+    await api.delete(`/activities/${activityId}`);
+  },
 };

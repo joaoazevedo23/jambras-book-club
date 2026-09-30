@@ -3,20 +3,24 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, MessageSquare, Send, User } from "lucide-react";
+import { Heart, MessageSquare, Send, User, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FeedActivity } from "@/types/activities";
 import { activityService } from "@/services/activities.service";
+import { useAuth } from "@/context/AuthContext";
 
 interface ActivityCardProps {
   activity: FeedActivity;
 }
 
 export function ActivityCard({ activity }: ActivityCardProps) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+
+  const isMyActivity = user?.id === activity.user.id;
 
   const timeAgo = formatDistanceToNow(new Date(activity.createdAt), {
     addSuffix: true,
@@ -45,10 +49,40 @@ export function ActivityCard({ activity }: ActivityCardProps) {
     },
   });
 
+  const deleteActivityMutation = useMutation({
+    mutationFn: () => activityService.deleteActivity(activity.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["social-feed"] });
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: string) => activityService.removeComment(commentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["social-feed"] });
+    },
+  });
+
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
     addCommentMutation.mutate(commentText);
+  };
+
+  const handleDeleteActivity = () => {
+    if (
+      window.confirm(
+        "Tem a certeza que deseja apagar esta publicação? Esta ação é irreversível.",
+      )
+    ) {
+      deleteActivityMutation.mutate();
+    }
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    if (window.confirm("Tem a certeza que deseja apagar este comentário?")) {
+      deleteCommentMutation.mutate(commentId);
+    }
   };
 
   const renderActivityContent = () => {
@@ -119,9 +153,20 @@ export function ActivityCard({ activity }: ActivityCardProps) {
       : "fez uma nova atualização.";
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden transition-all hover:border-zinc-700">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden transition-all hover:border-zinc-700 relative group">
+      {isMyActivity && (
+        <button
+          onClick={handleDeleteActivity}
+          disabled={deleteActivityMutation.isPending}
+          className="absolute top-4 right-4 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+          title="Apagar publicação"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
+
       <div className="p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 pr-8">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center overflow-hidden shrink-0 relative">
               {activity.user.avatarUrl ? (
@@ -185,7 +230,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
           {activity.comments.length > 0 ? (
             <div className="space-y-3">
               {activity.comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
+                <div key={comment.id} className="flex gap-3 group/comment">
                   <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center shrink-0 relative overflow-hidden">
                     {comment.user.avatarUrl ? (
                       <Image
@@ -198,8 +243,8 @@ export function ActivityCard({ activity }: ActivityCardProps) {
                       <User className="w-4 h-4 text-zinc-500" />
                     )}
                   </div>
-                  <div className="flex-1 bg-zinc-800/60 rounded-xl p-3 text-sm">
-                    <div className="flex items-baseline justify-between mb-1">
+                  <div className="flex-1 bg-zinc-800/60 rounded-xl p-3 text-sm relative">
+                    <div className="flex items-baseline justify-between mb-1 pr-6">
                       <span className="font-semibold text-zinc-200">
                         {comment.user.name}
                       </span>
@@ -210,6 +255,17 @@ export function ActivityCard({ activity }: ActivityCardProps) {
                       </span>
                     </div>
                     <p className="text-zinc-300">{comment.content}</p>
+
+                    {user?.id === comment.user.id && (
+                      <button
+                        onClick={() => handleDeleteComment(comment.id)}
+                        disabled={deleteCommentMutation.isPending}
+                        className="absolute top-2 right-2 p-1 text-zinc-500 hover:text-red-400 opacity-0 group-hover/comment:opacity-100 transition-opacity"
+                        title="Apagar comentário"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
