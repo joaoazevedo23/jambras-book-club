@@ -5,6 +5,8 @@ import {
   ExternalBook,
   Book,
   UpdateUserBookDTO,
+  ReadingSession,
+  CreateReadingSessionDTO,  
 } from "@/types/book";
 
 export const bookService = {
@@ -30,6 +32,16 @@ export const bookService = {
 
   async updateShelf(bookId: string, dto: UpdateUserBookDTO): Promise<UserBook> {
     const response = await api.patch<UserBook>(`/books/${bookId}/shelf`, dto);
+    return response.data;
+  },
+
+  async createReadingSession(userBookId: string, dto: CreateReadingSessionDTO): Promise<ReadingSession> {
+    const response = await api.post<ReadingSession>(`/books/user-books/${userBookId}/sessions`, dto);
+    return response.data;
+  },
+
+  async getReadingSessions(userBookId: string): Promise<ReadingSession[]> {
+    const response = await api.get<ReadingSession[]>(`/books/user-books/${userBookId}/sessions`);
     return response.data;
   },
 };

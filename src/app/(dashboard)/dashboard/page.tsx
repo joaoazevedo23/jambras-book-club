@@ -6,7 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { bookService } from "@/services/book.service";
 import { ShelfStatus } from "@/types/book";
 import { AddBookModal } from "@/components/modules/shelf/AddBookModal";
-import { BookOpen, Plus } from "lucide-react";
+import { BookOpen, Plus, Clock } from "lucide-react";
+import { ReadingSessionModal } from "@/components/modules/shelf/ReadingSessionModal";
+import { UserBook } from "@/types/book";
 
 const tabs: { label: string; value: ShelfStatus | "ALL" }[] = [
   { label: "Todos", value: "ALL" },
@@ -18,6 +20,9 @@ const tabs: { label: string; value: ShelfStatus | "ALL" }[] = [
 export default function DashboardPage() {
   const [selectedTab, setSelectedTab] = useState<ShelfStatus | "ALL">("ALL");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [activeSessionBook, setActiveSessionBook] = useState<UserBook | null>(
+    null,
+  );
 
   const { data: shelf = [], isLoading } = useQuery({
     queryKey: ["user-shelf", selectedTab],
@@ -84,12 +89,19 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {shelf.map((item) => {
-            const progress = Math.min(
-              100,
-              Math.round(
-                (item.currentPage / (item.book.totalPages || 1)) * 100,
-              ),
-            );
+            const isReadingByChapters =
+              item.currentChapter !== undefined &&
+              item.currentChapter > 0 &&
+              item.currentPage === 0;
+
+            const progress = isReadingByChapters
+              ? 0
+              : Math.min(
+                  100,
+                  Math.round(
+                    (item.currentPage / (item.book.totalPages || 1)) * 100,
+                  ),
+                );
 
             return (
               <div
@@ -122,17 +134,37 @@ export default function DashboardPage() {
                     </p>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] text-zinc-400">
-                      <span>{item.currentPage} pág.</span>
-                      <span>{progress}%</span>
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-zinc-400">
+                        {isReadingByChapters ? (
+                          <span>Capítulo {item.currentChapter}</span>
+                        ) : (
+                          <span>{item.currentPage} pág.</span>
+                        )}
+
+                        {!isReadingByChapters && <span>{progress}%</span>}
+                      </div>
+
+                      {!isReadingByChapters && (
+                        <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-indigo-500 h-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                      <div
-                        className="bg-indigo-500 h-full transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
+
+                    {item.status === "READING" && (
+                      <button
+                        onClick={() => setActiveSessionBook(item)}
+                        className="w-full py-1.5 mt-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-md transition-colors flex items-center justify-center space-x-1 border border-zinc-700 hover:border-zinc-600"
+                      >
+                        <Clock className="w-3 h-3" />
+                        <span>Registrar Leitura</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -144,6 +176,11 @@ export default function DashboardPage() {
       <AddBookModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+      <ReadingSessionModal
+        isOpen={!!activeSessionBook}
+        onClose={() => setActiveSessionBook(null)}
+        userBook={activeSessionBook}
       />
     </div>
   );
