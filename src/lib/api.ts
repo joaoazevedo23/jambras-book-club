@@ -53,7 +53,8 @@ api.interceptors.response.use(
     ) {
       if (
         originalRequest.url?.includes("/auth/refresh") ||
-        originalRequest.url?.includes("/auth/login")
+        originalRequest.url?.includes("/auth/login") ||
+        originalRequest.url?.includes("/auth/register")
       ) {
         storage.clearTokens();
         return Promise.reject(error);
@@ -78,6 +79,7 @@ api.interceptors.response.use(
       const refreshToken = storage.getRefreshToken();
 
       if (!refreshToken) {
+        isRefreshing = false;
         storage.clearTokens();
         if (typeof window !== "undefined") {
           window.location.href = `${window.location.origin}/login`;
@@ -86,12 +88,11 @@ api.interceptors.response.use(
       }
 
       try {
-        const { data } = await axios.post(
-          `${api.defaults.baseURL}/auth/refresh`,
-          {
-            refreshToken,
-          },
-        );
+        const { data } = await axios.request({
+          method: "post",
+          url: `${api.defaults.baseURL}/auth/refresh`,
+          headers: { Authorization: `Bearer ${refreshToken}` },
+        });
 
         const accessToken = data.tokens?.accessToken || data.accessToken;
         const newRefreshToken = data.tokens?.refreshToken || data.refreshToken;
