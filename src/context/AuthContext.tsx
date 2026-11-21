@@ -10,7 +10,8 @@ import React, {
 import { useRouter } from "next/navigation";
 import { User } from "@/types/user";
 import { storage } from "@/lib/storage";
-import { api } from "@/lib/api";
+import { api, beginSession } from "@/lib/api";
+import { logoutSession } from "@/lib/logout";
 
 interface AuthContextData {
   user: User | null;
@@ -79,15 +80,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch {
-      // Ignora erro de logout e limpa o estado local
-    } finally {
-      storage.clearTokens();
-      setUser(null);
-      router.push("/login");
-    }
+    await logoutSession();
+    setUser(null);
+    router.push("/login");
   }, [router]);
 
   const login = (accessToken: string, refreshToken: string, userData: User) => {
@@ -98,6 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
+    beginSession();
     storage.setAccessToken(accessToken);
     if (refreshToken) storage.setRefreshToken(refreshToken);
 

@@ -9,6 +9,19 @@ export const api = axios.create({
 });
 
 let isRefreshing = false;
+let logoutInProgress = false;
+let authGeneration = 0;
+
+export const beginLogout = () => {
+  logoutInProgress = true;
+  authGeneration += 1;
+};
+
+export const beginSession = () => {
+  logoutInProgress = false;
+  authGeneration += 1;
+};
+
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -54,9 +67,14 @@ api.interceptors.response.use(
       if (
         originalRequest.url?.includes("/auth/refresh") ||
         originalRequest.url?.includes("/auth/login") ||
-        originalRequest.url?.includes("/auth/register")
+        originalRequest.url?.includes("/auth/register") ||
+        originalRequest.url?.includes("/auth/logout")
       ) {
         storage.clearTokens();
+        return Promise.reject(error);
+      }
+
+      if (logoutInProgress) {
         return Promise.reject(error);
       }
 
@@ -87,33 +105,46 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      const generationAtRefresh = authGeneration;
+
+      let data;
       try {
-        const { data } = await axios.request({
+        ({ data } = await axios.request({
           method: "post",
           url: `${api.defaults.baseURL}/auth/refresh`,
           headers: { Authorization: `Bearer ${refreshToken}` },
-        });
-
-        const accessToken = data.tokens?.accessToken || data.accessToken;
-        const newRefreshToken = data.tokens?.refreshToken || data.refreshToken;
-
-        storage.setAccessToken(accessToken);
-        if (newRefreshToken) storage.setRefreshToken(newRefreshToken);
-
-        api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        processQueue(null, accessToken);
-
-        return api(originalRequest);
+        }));
       } catch (refreshError) {
-        processQueue(refreshError as AxiosError, null);
-        storage.clearTokens();
-        if (typeof window !== "undefined") {
-          window.location.href = `${window.location.origin}/login`;
+        if (authGeneration === generationAtRefresh) {
+          storage.clearTokens();
+          if (typeof window !== "undefined") {
+            window.location.href = `${window.location.origin}/login`;
+          }
         }
+        processQueue(refreshError as AxiosError, null);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
+
+      if (
+        authGeneration !== generationAtRefresh ||
+        storage.getRefreshToken() !== refreshToken
+      ) {
+        processQueue(error, null);
+        return Promise.reject(error);
+      }
+
+      const accessToken = data.tokens?.accessToken || data.accessToken;
+      const newRefreshToken = data.tokens?.refreshToken || data.refreshToken;
+
+      storage.setAccessToken(accessToken);
+      if (newRefreshToken) storage.setRefreshToken(newRefreshToken);
+
+      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      processQueue(null, accessToken);
+
+      return api(originalRequest);
     }
 
     return Promise.reject(error);
