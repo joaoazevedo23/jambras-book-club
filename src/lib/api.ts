@@ -74,6 +74,10 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      if (logoutInProgress) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -92,7 +96,7 @@ api.interceptors.response.use(
 
       const refreshToken = storage.getRefreshToken();
 
-      if (!refreshToken || logoutInProgress) {
+      if (!refreshToken) {
         isRefreshing = false;
         storage.clearTokens();
         if (typeof window !== "undefined") {
@@ -103,41 +107,44 @@ api.interceptors.response.use(
 
       const generationAtRefresh = authGeneration;
 
+      let data;
       try {
-        const { data } = await axios.request({
+        ({ data } = await axios.request({
           method: "post",
           url: `${api.defaults.baseURL}/auth/refresh`,
           headers: { Authorization: `Bearer ${refreshToken}` },
-        });
-
-        if (
-          authGeneration !== generationAtRefresh ||
-          storage.getRefreshToken() !== refreshToken
-        ) {
-          processQueue(error, null);
-          return Promise.reject(error);
-        }
-
-        const accessToken = data.tokens?.accessToken || data.accessToken;
-        const newRefreshToken = data.tokens?.refreshToken || data.refreshToken;
-
-        storage.setAccessToken(accessToken);
-        if (newRefreshToken) storage.setRefreshToken(newRefreshToken);
-
-        api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        processQueue(null, accessToken);
-
-        return api(originalRequest);
+        }));
       } catch (refreshError) {
-        processQueue(refreshError as AxiosError, null);
-        storage.clearTokens();
-        if (typeof window !== "undefined") {
-          window.location.href = `${window.location.origin}/login`;
+        if (authGeneration === generationAtRefresh) {
+          storage.clearTokens();
+          if (typeof window !== "undefined") {
+            window.location.href = `${window.location.origin}/login`;
+          }
         }
+        processQueue(refreshError as AxiosError, null);
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
+
+      if (
+        authGeneration !== generationAtRefresh ||
+        storage.getRefreshToken() !== refreshToken
+      ) {
+        processQueue(error, null);
+        return Promise.reject(error);
+      }
+
+      const accessToken = data.tokens?.accessToken || data.accessToken;
+      const newRefreshToken = data.tokens?.refreshToken || data.refreshToken;
+
+      storage.setAccessToken(accessToken);
+      if (newRefreshToken) storage.setRefreshToken(newRefreshToken);
+
+      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      processQueue(null, accessToken);
+
+      return api(originalRequest);
     }
 
     return Promise.reject(error);

@@ -227,6 +227,115 @@ describe("logoutSession", () => {
     expect(storage.getRefreshToken()).toBe("rt-newer");
   });
 
+  it("keeps a newer session intact when a stale refresh resolves after relogin", async () => {
+    storage.setAccessToken("at-a");
+    storage.setRefreshToken("rt-a");
+    apiMock.onGet("/me").reply(401);
+    apiMock.onPost("/auth/logout").reply(200, { success: true });
+
+    let resolveRefresh: (value: [number, unknown]) => void = () => {};
+    axiosMock.onPost(/\/auth\/refresh$/).reply(
+      () =>
+        new Promise<[number, unknown]>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    const request = api.get("/me").catch((err) => err);
+    await vi.waitFor(() => expect(refreshCalls()).toHaveLength(1));
+
+    await logoutSession();
+
+    beginSession();
+    storage.setAccessToken("at-b");
+    storage.setRefreshToken("rt-b");
+
+    resolveRefresh([200, { accessToken: "at-stale", refreshToken: "rt-stale" }]);
+    const err = await request;
+
+    expect(err.response.status).toBe(401);
+    expect(storage.getAccessToken()).toBe("at-b");
+    expect(storage.getRefreshToken()).toBe("rt-b");
+    expect(location.href).toBe("");
+  });
+
+  it("keeps a newer session intact when a stale refresh fails after relogin", async () => {
+    storage.setAccessToken("at-a");
+    storage.setRefreshToken("rt-a");
+    apiMock.onGet("/me").reply(401);
+    apiMock.onPost("/auth/logout").reply(200, { success: true });
+
+    let rejectRefresh: (reason?: unknown) => void = () => {};
+    axiosMock.onPost(/\/auth\/refresh$/).reply(
+      () =>
+        new Promise<never>((_, reject) => {
+          rejectRefresh = reject;
+        }),
+    );
+
+    const request = api.get("/me").catch((err) => err);
+    await vi.waitFor(() => expect(refreshCalls()).toHaveLength(1));
+
+    await logoutSession();
+
+    beginSession();
+    storage.setAccessToken("at-b");
+    storage.setRefreshToken("rt-b");
+
+    rejectRefresh(new Error("network error"));
+    await request;
+
+    expect(storage.getAccessToken()).toBe("at-b");
+    expect(storage.getRefreshToken()).toBe("rt-b");
+    expect(location.href).toBe("");
+  });
+
+  it("rejects a new 401 immediately during logout even while a refresh is in flight", async () => {
+    storage.setAccessToken("at-a");
+    storage.setRefreshToken("rt-a");
+    apiMock.onGet("/a").reply(401).onGet("/b").reply(401);
+
+    let resolveRefresh: (value: [number, unknown]) => void = () => {};
+    axiosMock.onPost(/\/auth\/refresh$/).reply(
+      () =>
+        new Promise<[number, unknown]>((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+
+    let resolveLogout: (value: [number, unknown]) => void = () => {};
+    apiMock.onPost("/auth/logout").reply(
+      () =>
+        new Promise<[number, unknown]>((resolve) => {
+          resolveLogout = resolve;
+        }),
+    );
+
+    const requestA = api.get("/a").catch((err) => err);
+    await vi.waitFor(() => expect(refreshCalls()).toHaveLength(1));
+
+    const logout = logoutSession();
+    await vi.waitFor(() =>
+      expect(
+        apiMock.history.post.filter((r) => r.url === "/auth/logout"),
+      ).toHaveLength(1),
+    );
+
+    const errB = await api.get("/b").catch((err) => err);
+
+    expect(errB.response.status).toBe(401);
+    expect(apiMock.history.get.filter((r) => r.url === "/b")).toHaveLength(1);
+    expect(refreshCalls()).toHaveLength(1);
+
+    resolveRefresh([200, { accessToken: "at-stale", refreshToken: "rt-stale" }]);
+    await requestA;
+    resolveLogout([200, { success: true }]);
+    await logout;
+
+    expect(storage.getAccessToken()).toBeNull();
+    expect(storage.getRefreshToken()).toBeNull();
+  });
+
   it("prevents an in-flight refresh from restoring tokens after logout", async () => {
     storage.setAccessToken("at-expired");
     storage.setRefreshToken("rt-1");
